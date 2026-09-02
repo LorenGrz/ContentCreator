@@ -112,6 +112,19 @@ def test_hackernews_pulled_alongside_activity_when_always_on(monkeypatch):
     assert result["by_source"] == {"github": 1, "hackernews": 1}
 
 
+def test_linkedin_always_flag_reaches_generation(monkeypatch):
+    _patch_common(monkeypatch, calendar_enabled=False)
+    monkeypatch.setattr(config, "LINKEDIN_ALWAYS", True)
+    import generation.llm_client as llm
+
+    captured = {}
+    monkeypatch.setattr(llm, "generate_drafts", lambda **kw: captured.update(kw) or [])
+
+    daily_job.run(reason="test")
+
+    assert captured["linkedin_always"] is True
+
+
 def test_x_skipped_when_disabled(monkeypatch):
     _patch_common(monkeypatch, calendar_enabled=False, x_enabled=False)
     import ingestion.x_client as x

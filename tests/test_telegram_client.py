@@ -119,6 +119,14 @@ def test_approve_sends_ready_text_with_copy_and_edit_buttons(monkeypatch):
     assert kb[1][0]["callback_data"] == "e:2026-08-29:t:deadbeef"
 
 
+def test_linkedin_high_signal_draft_shows_relevante_marker():
+    hi = _draft(platform="linkedin", content="post del día", topic_tags=[], high_signal=True)
+    lo = _draft(platform="linkedin", content="post del día", topic_tags=[], high_signal=False)
+    assert "⭐ muy relevante" in tg._format(hi)
+    assert "⭐ muy relevante" not in tg._format(lo)
+    assert "💼 LinkedIn" in tg._format(lo)
+
+
 def test_quote_tweet_draft_formats_with_quote_label_and_source():
     draft = _draft(
         content="mi comentario",

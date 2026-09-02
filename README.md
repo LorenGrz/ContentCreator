@@ -1,13 +1,20 @@
 # content-creator
 
 Serverless bot that reads **real GitHub activity** (and optionally Google
-Calendar), drafts short **Twitter** posts and a **LinkedIn** post (only when
-something significant happened), stores them, and sends them to a **Telegram**
-chat with *Approve* / *Discard* buttons.
+Calendar), drafts short **Twitter** posts and a **LinkedIn** post, stores
+them, and sends them to a **Telegram** chat with *Approve* / *Discard*
+buttons.
 
 Every day it also pulls a few Hacker News stories, so at least one tweet
 always riffs on something from the tech world — even on days with GitHub
 activity (`AlwaysTechNews`, on by default).
+
+There's also **at least one LinkedIn draft every run** (`LinkedinAlways`, on
+by default): a rule-based significance gate (merged PR, new repo, milestone
+calendar event) decides whether it's framed as a substantial post — labelled
+`💼 LinkedIn · ⭐ muy relevante` in Telegram — or a short honest reflection on
+the day. Set `LinkedinAlways=false` to get the LinkedIn draft only on
+high-signal days.
 
 It can also follow a few **X / Twitter accounts** through a Nitter RSS bridge
 (`XEnabled`, **off by default** — Nitter instances are flaky). When a draft
@@ -78,7 +85,7 @@ src/
   generation/
     voice_examples.py    hardcoded few-shot voice bank (REPLACE the placeholders)  [done]
     prompts.py           system prompt + per-day user message builder              [done]
-    significance.py      rule-based "does this deserve a LinkedIn post?"            [done]
+    significance.py      rule-based "is today a high-signal LinkedIn day?"          [done]
     llm_client.py        Strands Agent + Bedrock; parse reply -> Draft rows         [done]
   delivery/telegram_client.py   send drafts + dispatch taps / on-demand messages   [done]
   storage/

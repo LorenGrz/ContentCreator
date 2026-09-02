@@ -24,6 +24,7 @@ Globals:
         GITHUB_OWNER: !Ref GithubOwner
         CALENDAR_ENABLED: !Ref CalendarEnabled
         ALWAYS_TECH_NEWS: !Ref AlwaysTechNews
+        LINKEDIN_ALWAYS: !Ref LinkedinAlways
         X_ENABLED: !Ref XEnabled
         X_HANDLES: !Ref XHandles
         X_NITTER_BASES: !Ref XNitterBases
@@ -56,6 +57,14 @@ Parameters:
       Always pull a few Hacker News stories so at least one tweet riffs on
       tech news, even on days with GitHub activity. 'false' makes Hacker News
       a pure no-activity fallback.
+  LinkedinAlways:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: >
+      Always draft at least one LinkedIn post per run (a short reflection when
+      nothing high-signal happened; marked "muy relevante" when the
+      significance gate fires). 'false' = significance-gated LinkedIn only.
   XEnabled:
     Type: String
     Default: 'false'

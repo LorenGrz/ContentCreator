@@ -87,6 +87,7 @@ class Draft:
     status: str = "pending"
     kind: str = "original"
     quote_url: str = ""  # the tweet being quoted, when kind == "quote_tweet"
+    high_signal: bool = False  # a genuinely notable post (significance gate fired)
     topic_tags: list[str] = field(default_factory=list)
     source_signal_keys: list[str] = field(default_factory=list)
     telegram_chat_id: str = ""
@@ -119,6 +120,7 @@ class Draft:
             status=item.get("status", "pending"),
             kind=item.get("kind", "original"),
             quote_url=item.get("quote_url", ""),
+            high_signal=bool(item.get("high_signal", False)),
             topic_tags=list(item.get("topic_tags", [])),
             source_signal_keys=list(item.get("source_signal_keys", [])),
             telegram_chat_id=item.get("telegram_chat_id", ""),

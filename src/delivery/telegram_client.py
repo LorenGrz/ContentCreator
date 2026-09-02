@@ -104,6 +104,8 @@ def _is_quote(draft) -> bool:
 def _format(draft) -> str:
     if draft.platform != "twitter":
         label = "💼 LinkedIn"
+        if getattr(draft, "high_signal", False):
+            label += " · ⭐ muy relevante"
     elif _is_quote(draft):
         label = "🔁 Quote tweet"
     else:
