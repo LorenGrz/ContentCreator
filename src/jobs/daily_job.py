@@ -74,6 +74,7 @@ def run(reason: str = "unknown", user_note: str = "") -> dict:
                 significance=significance,
                 telegram_chat_id=config.TELEGRAM_CHAT_ID,
                 user_note=user_note,
+                linkedin_always=config.LINKEDIN_ALWAYS,
             )
         except Exception as exc:  # noqa: BLE001
             log.exception("draft generation failed")

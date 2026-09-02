@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from generation.llm_client import generate_drafts, parse_model_json, to_drafts
@@ -106,6 +108,35 @@ def test_to_drafts_skips_empty_content_and_missing_linkedin():
     parsed = {"tweets": [{"content": "  "}, {"content": "real"}], "linkedin": None}
     drafts = to_drafts(parsed, target_date="2026-08-29", signal_keys=[])
     assert [d.content for d in drafts] == ["real"]
+
+
+def test_to_drafts_marks_linkedin_high_signal():
+    parsed = {"tweets": [], "linkedin": {"content": "post del día", "topic_tags": []}}
+    hi = to_drafts(parsed, target_date="2026-08-29", signal_keys=[], linkedin_high_signal=True)
+    lo = to_drafts(parsed, target_date="2026-08-29", signal_keys=[], linkedin_high_signal=False)
+    assert next(d for d in hi if d.platform == "linkedin").high_signal is True
+    assert next(d for d in lo if d.platform == "linkedin").high_signal is False
+
+
+def test_generate_drafts_forces_linkedin_when_always_on(monkeypatch):
+    captured = {}
+
+    def fake_generate(user_message, **kw):
+        captured["msg"] = user_message
+        return {"tweets": [{"content": "t"}], "linkedin": None}
+
+    monkeypatch.setattr("generation.llm_client.generate", fake_generate)
+
+    generate_drafts(
+        signals=[_sig()],
+        recent_topics=[],
+        target_date="2026-08-29",
+        significance=Significance(linkedin_worthy=False),
+        linkedin_always=True,
+    )
+    data = json.loads(captured["msg"])
+    assert data["want_linkedin"] is True
+    assert data["linkedin_high_signal"] is False
 
 
 def test_generate_drafts_wires_prompt_to_model(monkeypatch):

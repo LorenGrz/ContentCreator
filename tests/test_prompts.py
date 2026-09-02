@@ -119,6 +119,34 @@ def test_user_note_with_signals_keeps_activity_mode():
     assert data["user_note"] == "enfocate en el aprendizaje, no en el feature"
 
 
+def test_linkedin_always_on_adds_daily_reflection_nudge():
+    msg = build_user_message(
+        signals=[_sig(title="pequeño ajuste", external_id="c1")],
+        recent_topics=[],
+        target_date="2026-08-29",
+        want_linkedin=True,
+        linkedin_high_signal=False,
+    )
+    data = json.loads(msg)
+    assert data["want_linkedin"] is True
+    assert data["linkedin_high_signal"] is False
+    assert "reflexión breve del día" in data["instructions"]
+
+
+def test_linkedin_high_signal_skips_the_reflection_nudge():
+    pr = _sig(type="pr", title="[merged] Ship", external_id="pr1", raw={"state": "merged"})
+    msg = build_user_message(
+        signals=[pr],
+        recent_topics=[],
+        target_date="2026-08-29",
+        want_linkedin=True,
+        linkedin_high_signal=True,
+    )
+    data = json.loads(msg)
+    assert data["linkedin_high_signal"] is True
+    assert "reflexión breve del día" not in data["instructions"]
+
+
 def test_linkedin_rationale_passed_through_when_wanted():
     msg = build_user_message(
         signals=[

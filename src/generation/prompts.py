@@ -52,9 +52,13 @@ que APORTE tu ángulo (no repitas ni parafrasees el tweet citado; el lector \
 ya lo ve), y en "quote_url" la "url" EXACTA de esa señal, sin cambiarla. El \
 resto de los tweets van con "kind": "original" (o sin el campo). Nunca \
 inventes una "quote_url" ni cites una señal que no sea "source": "x".
-- LinkedIn: incluí el campo solo si te lo piden ("want_linkedin": true); si \
-no, poné "linkedin": null. Cuando va, son 3 a 6 párrafos cortos, primera \
-persona, con el problema resuelto y una decisión técnica.
+- LinkedIn: incluí un objeto "linkedin" solo si "want_linkedin" es true; si \
+no, poné "linkedin": null. Cuando va y "linkedin_high_signal" es true, es un \
+post sustancioso: 3 a 6 párrafos cortos, primera persona, con el problema \
+resuelto y una decisión técnica. Cuando va y "linkedin_high_signal" es false, \
+es una reflexión breve del día: 2 a 4 párrafos cortos, primera persona, un \
+aprendizaje o detalle técnico concreto; si el día fue flojo, que sea honesto \
+y humilde, sin inflar ni inventar logros.
 - No repitas los ángulos listados en "recent_topics"; buscá uno nuevo.
 - No inventes logros que no estén en las señales. Si una señal es floja, \
 está bien un tweet chico y honesto.
@@ -126,6 +130,7 @@ def build_user_message(
     recent_topics: list[str],
     target_date: str,
     want_linkedin: bool,
+    linkedin_high_signal: bool = False,
     significance_reasons: list[str] | None = None,
     user_note: str = "",
 ) -> str:
@@ -172,9 +177,17 @@ def build_user_message(
     if user_note:
         base_instruction += " Seguí lo que pide 'user_note' de Lorenzo."
 
+    if want_linkedin and not linkedin_high_signal:
+        base_instruction += (
+            " Devolvé igual un 'linkedin' como reflexión breve del día (2 a 4 "
+            "párrafos cortos) sobre lo más relevante; si el día fue flojo, que "
+            "sea honesto, no infles."
+        )
+
     context = {
         "target_date": target_date,
         "want_linkedin": want_linkedin,
+        "linkedin_high_signal": linkedin_high_signal,
         "linkedin_rationale": significance_reasons or [],
         "mode": mode,
         "recent_topics": recent_topics,

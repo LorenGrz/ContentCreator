@@ -56,6 +56,12 @@ CALENDAR_ENABLED = os.environ.get("CALENDAR_ENABLED", "true").strip().lower() ==
 ALWAYS_TECH_NEWS = os.environ.get("ALWAYS_TECH_NEWS", "true").strip().lower() == "true"
 HACKERNEWS_LIMIT = int(os.environ.get("HACKERNEWS_LIMIT", "4"))
 
+# Always draft at least one LinkedIn post per run — the most relevant thing of
+# the day, framed as a short reflection when nothing high-signal happened. Set
+# false to fall back to significance-gated LinkedIn only (merged PR / new repo
+# / milestone event).
+LINKEDIN_ALWAYS = os.environ.get("LINKEDIN_ALWAYS", "true").strip().lower() == "true"
+
 # X / Twitter is an optional news source: a handful of accounts read through a
 # Nitter RSS bridge (no API key, no cost). Off by default — Nitter instances
 # are flaky, so it's opt-in. When a draft rides on one of these tweets the

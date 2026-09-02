@@ -79,6 +79,7 @@ def to_drafts(
     linkedin_keys: list[str] | None = None,
     telegram_chat_id: str = "",
     quote_urls: set[str] | None = None,
+    linkedin_high_signal: bool = False,
 ) -> list[Draft]:
     drafts: list[Draft] = []
     valid_quote_urls = quote_urls or set()
@@ -119,6 +120,7 @@ def to_drafts(
                     platform="linkedin",
                     content=content,
                     target_date=target_date,
+                    high_signal=linkedin_high_signal,
                     topic_tags=_clean_tags(li.get("topic_tags")),
                     source_signal_keys=list(linkedin_keys or signal_keys),
                     telegram_chat_id=telegram_chat_id,
@@ -167,15 +169,19 @@ def generate_drafts(
     significance: Significance,
     telegram_chat_id: str = "",
     user_note: str = "",
+    linkedin_always: bool = False,
 ) -> list[Draft]:
     """Build the prompt, call the model, and map the reply to ``Draft`` rows
     (status ``pending``, not yet stored). ``user_note`` is free text Lorenzo
-    sent to the bot to steer this run."""
+    sent to the bot to steer this run. ``linkedin_always`` forces at least one
+    LinkedIn draft even when the significance gate didn't fire."""
+    want_linkedin = linkedin_always or significance.linkedin_worthy
     user_message = build_user_message(
         signals=signals,
         recent_topics=recent_topics,
         target_date=target_date,
-        want_linkedin=significance.linkedin_worthy,
+        want_linkedin=want_linkedin,
+        linkedin_high_signal=significance.linkedin_worthy,
         significance_reasons=significance.reasons,
         user_note=user_note,
     )
@@ -185,6 +191,7 @@ def generate_drafts(
         target_date=target_date,
         signal_keys=[s.sk for s in signals],
         linkedin_keys=significance.highlight_keys or None,
+        linkedin_high_signal=significance.linkedin_worthy,
         telegram_chat_id=telegram_chat_id,
         quote_urls={s.url for s in signals if s.source == "x" and s.url},
     )
