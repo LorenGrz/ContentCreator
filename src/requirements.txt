@@ -1,0 +1,15 @@
+# Lambda runtime dependencies (installed into the deployment package by `sam build`).
+# Pin ranges conservatively; tighten once versions are confirmed against a deploy.
+
+fastapi>=0.115,<0.116
+mangum>=0.19,<0.20
+boto3>=1.35
+requests>=2.32
+
+# LLM — Strands Agents SDK backed by Bedrock (same pattern as `prioria`).
+strands-agents>=0.1.0
+
+# Google Calendar (OAuth2 refresh-token flow, no browser at runtime).
+google-auth>=2.30.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.140.0

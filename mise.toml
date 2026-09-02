@@ -1,0 +1,4 @@
+# Pin the interpreter to the Lambda runtime so `sam build` (no container)
+# packages wheels for the right Python.
+[tools]
+python = "3.13"

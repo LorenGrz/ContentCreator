@@ -1,0 +1,200 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  content-creator — one Lambda (FastAPI + Mangum) that, once a day, reads real
+  GitHub + Google Calendar activity, drafts Twitter / LinkedIn posts with an
+  Amazon Bedrock model, stores them in DynamoDB, and sends them to Telegram
+  for manual Approve / Discard. No auto-posting.
+
+  Deployed to the user's own AWS account. Secrets live in SSM Parameter Store
+  (SecureString) under /content-creator/*, created out-of-band.
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures: [arm64]
+    Timeout: 60
+    MemorySize: 512
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref ContentTable
+        BEDROCK_MODEL_ID: !Ref BedrockModelId
+        SSM_PREFIX: /content-creator
+        LOCAL_TZ: America/Argentina/Buenos_Aires
+        GITHUB_OWNER: !Ref GithubOwner
+        CALENDAR_ENABLED: !Ref CalendarEnabled
+        ALWAYS_TECH_NEWS: !Ref AlwaysTechNews
+        X_ENABLED: !Ref XEnabled
+        X_HANDLES: !Ref XHandles
+        X_NITTER_BASES: !Ref XNitterBases
+        X_LIMIT: !Ref XLimit
+        TELEGRAM_CHAT_ID: !Ref TelegramChatId
+        TELEGRAM_WEBHOOK_SECRET: !Ref TelegramWebhookSecret
+        LOG_LEVEL: INFO
+
+Parameters:
+  BedrockModelId:
+    Type: String
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
+    Description: Bedrock model / inference profile used to draft posts.
+  GithubOwner:
+    Type: String
+    Default: LorenGrz
+  CalendarEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: >
+      Whether to ingest Google Calendar. 'false' runs on GitHub alone (no
+      Google Cloud OAuth client needed); set to 'true' only after the three
+      /content-creator/google-* SSM parameters exist.
+  AlwaysTechNews:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: >
+      Always pull a few Hacker News stories so at least one tweet riffs on
+      tech news, even on days with GitHub activity. 'false' makes Hacker News
+      a pure no-activity fallback.
+  XEnabled:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: >
+      Whether to ingest tweets from a few followed X accounts through a Nitter
+      RSS bridge. When a draft rides on one of those tweets the generator
+      proposes a quote tweet (Lorenzo's take + the original's link). 'false'
+      keeps X out entirely.
+  XHandles:
+    Type: String
+    Default: ''
+    Description: Comma-separated X handles to follow, without the @ (e.g. "aws,vercel").
+  XNitterBases:
+    Type: String
+    Default: 'https://nitter.net,https://nitter.poast.org'
+    Description: Comma-separated Nitter instance base URLs, tried in order until one answers.
+  XLimit:
+    Type: String
+    Default: '5'
+    Description: Max tweets pulled per handle per run.
+  TelegramChatId:
+    Type: String
+    Default: ''
+    Description: Chat ID that receives the drafts (the user's DM with the bot).
+  TelegramWebhookSecret:
+    Type: String
+    NoEcho: true
+    Description: >
+      Shared secret passed to Telegram setWebhook and echoed back in the
+      X-Telegram-Bot-Api-Secret-Token header on every callback.
+  DailyScheduleCron:
+    Type: String
+    Default: 'cron(0 10 * * ? *)'
+    Description: 10:00 UTC = 07:00 America/Argentina.
+
+Resources:
+
+  ContentTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: content-creator
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  ContentApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # $default stage serves from the domain root, so the path the Lambda
+      # sees is "/health" not "/prod/health" — Mangum/FastAPI route on it
+      # directly with no base-path juggling.
+      StageName: $default
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  ContentFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/content-creator
+      RetentionInDays: 14
+
+  ContentFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: ContentFunctionLogGroup
+    Properties:
+      FunctionName: content-creator
+      CodeUri: src/
+      Handler: handler.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Sid: DynamoDbSingleTable
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource: !GetAtt ContentTable.Arn
+            - Sid: SsmSecrets
+              Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/content-creator/*
+            - Sid: BedrockInvoke
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource:
+                - !Sub arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-*
+                - !Sub arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/${BedrockModelId}
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ContentApi
+            Path: /health
+            Method: GET
+        Drafts:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ContentApi
+            Path: /drafts
+            Method: GET
+        Run:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ContentApi
+            Path: /run
+            Method: POST
+        TelegramWebhook:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ContentApi
+            Path: /telegram/webhook
+            Method: POST
+        DailySchedule:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Ref DailyScheduleCron
+            Description: Draft the day's posts every morning (Argentina time).
+            RetryPolicy:
+              MaximumRetryAttempts: 2
+
+Outputs:
+  ApiBaseUrl:
+    Description: HTTP API base URL — set the Telegram webhook to <this>/telegram/webhook
+    Value: !Sub https://${ContentApi}.execute-api.${AWS::Region}.amazonaws.com
+  FunctionName:
+    Value: !Ref ContentFunction
+  TableName:
+    Value: !Ref ContentTable

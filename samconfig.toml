@@ -1,0 +1,16 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "content-creator-dev"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+# TelegramWebhookSecret has no default on purpose — pass it explicitly:
+#   sam deploy --parameter-overrides TelegramWebhookSecret=... TelegramChatId=...
