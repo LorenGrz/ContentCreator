@@ -5,9 +5,11 @@ Calendar), drafts short **Twitter** posts and a **LinkedIn** post, stores
 them, and sends them to a **Telegram** chat with *Approve* / *Discard*
 buttons.
 
-Every day it also pulls a few Hacker News stories, so at least one tweet
-always riffs on something from the tech world — even on days with GitHub
-activity (`AlwaysTechNews`, on by default).
+Every day it also pulls curated stories from the [Weekly AI News
+Digest](https://elbruno.github.io/weekly-ai-news-digest/), so at least one
+tweet always riffs on something from the tech world — even on days with GitHub
+activity (`AlwaysTechNews`, on by default). That digest is the source of truth
+for technology-news content.
 
 There's also **at least one LinkedIn draft every run** (`LinkedinAlways`, on
 by default): a rule-based significance gate (merged PR, new repo, milestone
@@ -80,7 +82,7 @@ src/
   ingestion/
     github_client.py     commits / PRs / new repos from the events feed             [done]
     calendar_client.py   Google Calendar events, OAuth2 refresh-token auth          [done]
-    hackernews_client.py top stories, no-auth; always-on tech-news source           [done]
+    weekly_ai_news_digest_client.py curated AI/developer stories; always-on tech-news source [done]
     x_client.py          followed X accounts via Nitter RSS; opt-in (X_ENABLED)      [done]
   generation/
     voice_examples.py    hardcoded few-shot voice bank (REPLACE the placeholders)  [done]
@@ -98,7 +100,7 @@ tests/
   test_app_health.py       FastAPI smoke
   test_github_client.py     events -> signals, stale/noise dropped, token from SSM
   test_calendar_client.py   event mapping, declined skip, day-window params
-  test_hackernews_client.py story filtering + limit
+  test_weekly_ai_news_digest_client.py curated story parsing + limit
   test_x_client.py         Nitter RSS -> signals, RT/stale drop, instance fallback
   test_significance.py      LinkedIn gate: merged PR / new repo / keyword event
   test_prompts.py           prompt carries signals, recent topics, reflection mode
@@ -193,8 +195,8 @@ curl "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 2. _(folded into 1)_
 3. **Ingestion** — done. `github_client` (events feed -> commit/pr/new_repo
    signals), `calendar_client` (OAuth2 refresh token, declined events skipped;
-   gated by `CALENDAR_ENABLED`, off by default), `hackernews_client` (no-auth
-   fallback), `x_client` (Nitter RSS -> `tweet` signals with canonical
+   gated by `CALENDAR_ENABLED`, off by default), `weekly_ai_news_digest_client`
+   (curated technology-news source of truth), `x_client` (Nitter RSS -> `tweet` signals with canonical
    `twitter.com` URLs; gated by `X_ENABLED`, off by default; retweets and
    out-of-window tweets dropped; tries each `X_NITTER_BASES` instance in
    order). HTTP mocked in tests.
@@ -267,7 +269,7 @@ sam build                       # Build Succeeded (arm64 wheels)
 
 **Deployed and verified end-to-end** (stack `content-creator-dev`, us-east-1):
 `GET /health` → 200; a scheduled run drove `daily_job` live —
-`by_source {github: 6, hackernews: 4}` → Bedrock → `drafts: 3, sent: 3,
+`by_source {github: 6, weekly_ai_news_digest: 4}` → Bedrock → `drafts: 3, sent: 3,
 errors: {}` (one draft riffs on an HN story). Approve → text re-sent with
 `copy_text` + X-intent + Editar buttons (Telegram accepted the payload);
 an edit instruction ran `llm_client.revise` and rewrote the stored draft.

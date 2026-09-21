@@ -47,14 +47,17 @@ GITHUB_OWNER = os.environ.get("GITHUB_OWNER", "LorenGrz")
 
 # Google Calendar is an optional source. Disable it (CALENDAR_ENABLED=false)
 # when there's no Google Cloud OAuth client to back it — the daily job then
-# runs on GitHub alone (plus the Hacker News fallback).
+# runs on GitHub alone (plus the curated technology-news source).
 CALENDAR_ENABLED = os.environ.get("CALENDAR_ENABLED", "true").strip().lower() == "true"
 
-# Always pull a few Hacker News stories, even when there IS personal activity,
-# so there's always at least one "mundo tech" tweet. Set false to make Hacker
-# News a pure no-activity fallback again.
+# Always pull curated technology stories, even when there IS personal activity,
+# so there's always at least one "mundo tech" tweet. Set false to make this
+# source a pure no-activity fallback again.
 ALWAYS_TECH_NEWS = os.environ.get("ALWAYS_TECH_NEWS", "true").strip().lower() == "true"
-HACKERNEWS_LIMIT = int(os.environ.get("HACKERNEWS_LIMIT", "4"))
+TECH_NEWS_URL = os.environ.get(
+    "TECH_NEWS_URL", "https://elbruno.github.io/weekly-ai-news-digest/"
+)
+TECH_NEWS_LIMIT = int(os.environ.get("TECH_NEWS_LIMIT", "4"))
 
 # Always draft at least one LinkedIn post per run — the most relevant thing of
 # the day, framed as a short reflection when nothing high-signal happened. Set

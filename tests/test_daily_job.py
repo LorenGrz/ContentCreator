@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import config
 import ingestion.github_client as gh
-import ingestion.hackernews_client as hn
+import ingestion.weekly_ai_news_digest_client as digest
 import jobs.daily_job as daily_job
 import storage.repository as repo_mod
 from storage.models import Signal
@@ -47,12 +47,12 @@ def _patch_common(
         ],
     )
     monkeypatch.setattr(
-        hn,
-        "fetch_hackernews_signals",
+        digest,
+        "fetch_weekly_ai_news_signals",
         lambda **_kw: [
             Signal(
-                source="hackernews",
-                external_id="hn1",
+                source="weekly_ai_news_digest",
+                external_id="digest1",
                 type="story",
                 title="Some tech story",
                 activity_date="2026-08-30",
@@ -109,7 +109,7 @@ def test_hackernews_pulled_alongside_activity_when_always_on(monkeypatch):
 
     result = daily_job.run(reason="test")
 
-    assert result["by_source"] == {"github": 1, "hackernews": 1}
+    assert result["by_source"] == {"github": 1, "weekly_ai_news_digest": 1}
 
 
 def test_linkedin_always_flag_reaches_generation(monkeypatch):

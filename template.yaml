@@ -24,6 +24,8 @@ Globals:
         GITHUB_OWNER: !Ref GithubOwner
         CALENDAR_ENABLED: !Ref CalendarEnabled
         ALWAYS_TECH_NEWS: !Ref AlwaysTechNews
+        TECH_NEWS_URL: !Ref TechNewsUrl
+        TECH_NEWS_LIMIT: !Ref TechNewsLimit
         LINKEDIN_ALWAYS: !Ref LinkedinAlways
         X_ENABLED: !Ref XEnabled
         X_HANDLES: !Ref XHandles
@@ -54,9 +56,17 @@ Parameters:
     Default: 'true'
     AllowedValues: ['true', 'false']
     Description: >
-      Always pull a few Hacker News stories so at least one tweet riffs on
-      tech news, even on days with GitHub activity. 'false' makes Hacker News
-      a pure no-activity fallback.
+      Always pull a few stories from the Weekly AI News Digest so at least one
+      tweet riffs on tech news, even on days with GitHub activity. 'false'
+      makes the digest a pure no-activity fallback.
+  TechNewsUrl:
+    Type: String
+    Default: 'https://elbruno.github.io/weekly-ai-news-digest/'
+    Description: Curated technology-news page used as the source of truth for news drafts.
+  TechNewsLimit:
+    Type: String
+    Default: '4'
+    Description: Maximum number of curated technology stories ingested per run.
   LinkedinAlways:
     Type: String
     Default: 'true'

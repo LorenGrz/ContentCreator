@@ -19,7 +19,7 @@ def run(reason: str = "unknown", user_note: str = "") -> dict:
     from generation.llm_client import generate_drafts
     from generation.significance import evaluate as evaluate_significance
     from ingestion.github_client import fetch_github_signals
-    from ingestion.hackernews_client import fetch_hackernews_signals
+    from ingestion.weekly_ai_news_digest_client import fetch_weekly_ai_news_signals
     from storage.repository import Repository
     from timeutils import today_local_iso
 
@@ -47,10 +47,15 @@ def run(reason: str = "unknown", user_note: str = "") -> dict:
     has_personal = any(s.source in ("github", "calendar") for s in signals)
     if config.ALWAYS_TECH_NEWS or not has_personal:
         try:
-            signals.extend(fetch_hackernews_signals(limit=config.HACKERNEWS_LIMIT))
+            signals.extend(
+                fetch_weekly_ai_news_signals(
+                    limit=config.TECH_NEWS_LIMIT,
+                    url=config.TECH_NEWS_URL,
+                )
+            )
         except Exception as exc:  # noqa: BLE001
-            log.exception("hackernews ingestion failed")
-            errors["hackernews"] = f"{type(exc).__name__}: {exc}"
+            log.exception("technology news ingestion failed")
+            errors["technology_news"] = f"{type(exc).__name__}: {exc}"
 
     repo = Repository()
     for signal in signals:

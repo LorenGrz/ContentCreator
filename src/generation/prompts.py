@@ -137,8 +137,8 @@ def build_user_message(
     user_note = (user_note or "").strip()
     has_personal = any(s.source in ("github", "calendar") for s in signals)
     has_x = any(s.source == "x" for s in signals)
-    has_hn = any(s.source == "hackernews" for s in signals)
-    has_news = has_hn or has_x
+    has_tech_news = any(s.source == "weekly_ai_news_digest" for s in signals)
+    has_news = has_tech_news or has_x
     only_fallback = has_news and not has_personal and not user_note
 
     if user_note and not signals:
@@ -157,12 +157,12 @@ def build_user_message(
         mode = "personal_activity"
         base_instruction = "Priorizá lo más sustancioso de la actividad del día."
 
-    # Always land at least one "mundo tech" tweet when Hacker News is available
+    # Always land at least one "mundo tech" tweet when curated news is available
     # and it isn't already the only material.
-    if has_hn and not only_fallback:
+    if has_tech_news and not only_fallback:
         base_instruction += (
             " Incluí SIEMPRE al menos 1 tweet que enganche una de las noticias "
-            "en 'source: hackernews' con el trabajo de Lorenzo o el mundo dev; "
+            "en 'source: weekly_ai_news_digest' con el trabajo de Lorenzo o el mundo dev; "
             "el resto, de su actividad real."
         )
 

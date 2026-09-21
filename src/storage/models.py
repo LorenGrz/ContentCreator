@@ -15,7 +15,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
-SIGNAL_SOURCES = ("github", "calendar", "hackernews", "x")
+SIGNAL_SOURCES = ("github", "calendar", "weekly_ai_news_digest", "x")
 SIGNAL_TYPES = ("commit", "pr", "new_repo", "event", "story", "tweet")
 
 PLATFORMS = ("twitter", "linkedin")

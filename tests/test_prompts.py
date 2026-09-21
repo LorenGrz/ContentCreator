@@ -64,9 +64,16 @@ def test_user_message_carries_signals_and_recent_topics():
     assert data["signals"][0]["title"] == "Add repository layer"
 
 
-def test_hackernews_only_switches_to_reflection_mode():
+def test_curated_news_only_switches_to_reflection_mode():
     msg = build_user_message(
-        signals=[_sig(source="hackernews", type="story", title="Some HN story", external_id="s1")],
+        signals=[
+            _sig(
+                source="weekly_ai_news_digest",
+                type="story",
+                title="Some tech story",
+                external_id="s1",
+            )
+        ],
         recent_topics=[],
         target_date="2026-08-29",
         want_linkedin=False,
@@ -80,7 +87,12 @@ def test_activity_plus_news_always_asks_for_a_tech_news_tweet():
     msg = build_user_message(
         signals=[
             _sig(title="Add repo layer", external_id="c1"),
-            _sig(source="hackernews", type="story", title="Big tech story", external_id="s1"),
+            _sig(
+                source="weekly_ai_news_digest",
+                type="story",
+                title="Big tech story",
+                external_id="s1",
+            ),
         ],
         recent_topics=[],
         target_date="2026-08-29",
@@ -88,7 +100,7 @@ def test_activity_plus_news_always_asks_for_a_tech_news_tweet():
     )
     data = json.loads(msg)
     assert data["mode"] == "personal_activity"
-    assert "source: hackernews" in data["instructions"]
+    assert "source: weekly_ai_news_digest" in data["instructions"]
     assert "SIEMPRE al menos 1 tweet" in data["instructions"]
 
 
