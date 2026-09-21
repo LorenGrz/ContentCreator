@@ -9,8 +9,9 @@ aprobar/editar el borrador.
 - Corre una vez al día por schedule (EventBridge) y también on-demand:
   mandarle un mensaje al bot en Telegram dispara una corrida ya, usando el
   texto del mensaje como steering (`user_note`) para el modelo.
-- Todos los días saca al menos un tweet con onda "tech news" (Hacker News,
-  `AlwaysTechNews`, on por default) y al menos un borrador de LinkedIn
+- Todos los días saca al menos un tweet con onda "tech news" desde el [Weekly
+  AI News Digest](https://elbruno.github.io/weekly-ai-news-digest/) como fuente
+  de la verdad (`AlwaysTechNews`, on por default) y al menos un borrador de LinkedIn
   (`LinkedinAlways`, on por default) — un gate basado en reglas (PR
   mergeado, repo nuevo, evento de calendario) decide si se enmarca como post
   sustancial o como reflexión corta.
