@@ -27,11 +27,19 @@ class _FakeRepo:
 
 
 def _patch_common(
-    monkeypatch, *, calendar_enabled: bool, always_tech_news: bool = False, x_enabled: bool = False
+    monkeypatch,
+    *,
+    calendar_enabled: bool,
+    always_tech_news: bool = False,
+    x_enabled: bool = False,
+    github_trending_enabled: bool = False,
+    huggingface_enabled: bool = False,
 ):
     monkeypatch.setattr(config, "CALENDAR_ENABLED", calendar_enabled)
     monkeypatch.setattr(config, "ALWAYS_TECH_NEWS", always_tech_news)
     monkeypatch.setattr(config, "X_ENABLED", x_enabled)
+    monkeypatch.setattr(config, "GITHUB_TRENDING_ENABLED", github_trending_enabled)
+    monkeypatch.setattr(config, "HUGGINGFACE_ENABLED", huggingface_enabled)
     monkeypatch.setattr(repo_mod, "Repository", lambda: _FakeRepo())
     monkeypatch.setattr(
         gh,
@@ -101,7 +109,7 @@ def test_calendar_used_when_enabled(monkeypatch):
     assert called["calendar"] is True
 
 
-def test_hackernews_pulled_alongside_activity_when_always_on(monkeypatch):
+def test_tech_news_pulled_alongside_activity_when_always_on(monkeypatch):
     _patch_common(monkeypatch, calendar_enabled=False, always_tech_news=True)
     import ingestion.calendar_client as cal
 
@@ -182,7 +190,7 @@ def test_x_failure_is_captured_not_fatal(monkeypatch):
     assert result["by_source"] == {"github": 1}
 
 
-def test_hackernews_is_fallback_only_when_always_off(monkeypatch):
+def test_tech_news_is_fallback_only_when_always_off(monkeypatch):
     _patch_common(monkeypatch, calendar_enabled=False, always_tech_news=False)
     import ingestion.calendar_client as cal
 
@@ -190,4 +198,53 @@ def test_hackernews_is_fallback_only_when_always_off(monkeypatch):
 
     result = daily_job.run(reason="test")
 
-    assert result["by_source"] == {"github": 1}  # no HN because there was activity
+    assert result["by_source"] == {"github": 1}  # no tech news fallback because there was activity
+
+
+def test_github_trending_ingested_when_enabled(monkeypatch):
+    _patch_common(monkeypatch, calendar_enabled=False, github_trending_enabled=True)
+    import ingestion.github_trending_client as ght
+
+    monkeypatch.setattr(
+        ght,
+        "fetch_github_trending_signals",
+        lambda *_a, **_kw: [
+            Signal(
+                source="github_trending",
+                external_id="gh1",
+                type="repo",
+                title="Super Agent",
+                activity_date="2026-08-30",
+            )
+        ],
+    )
+
+    result = daily_job.run(reason="test")
+
+    assert result["by_source"].get("github_trending") == 1
+    assert "github_trending" not in result["errors"]
+
+
+def test_huggingface_ingested_when_enabled(monkeypatch):
+    _patch_common(monkeypatch, calendar_enabled=False, huggingface_enabled=True)
+    import ingestion.huggingface_client as hf
+
+    monkeypatch.setattr(
+        hf,
+        "fetch_huggingface_signals",
+        lambda *_a, **_kw: [
+            Signal(
+                source="huggingface",
+                external_id="hf1",
+                type="paper",
+                title="Reasoning Paper",
+                activity_date="2026-08-30",
+            )
+        ],
+    )
+
+    result = daily_job.run(reason="test")
+
+    assert result["by_source"].get("huggingface") == 1
+    assert "huggingface" not in result["errors"]
+

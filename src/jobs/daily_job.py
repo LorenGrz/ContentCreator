@@ -36,6 +36,14 @@ def run(reason: str = "unknown", user_note: str = "") -> dict:
         from ingestion.x_client import fetch_x_signals
 
         sources.append(("x", fetch_x_signals))
+    if config.GITHUB_TRENDING_ENABLED:
+        from ingestion.github_trending_client import fetch_github_trending_signals
+
+        sources.append(("github_trending", fetch_github_trending_signals))
+    if config.HUGGINGFACE_ENABLED:
+        from ingestion.huggingface_client import fetch_huggingface_signals
+
+        sources.append(("huggingface", fetch_huggingface_signals))
 
     for name, fetch in sources:
         try:

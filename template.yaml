@@ -26,6 +26,10 @@ Globals:
         ALWAYS_TECH_NEWS: !Ref AlwaysTechNews
         TECH_NEWS_URL: !Ref TechNewsUrl
         TECH_NEWS_LIMIT: !Ref TechNewsLimit
+        GITHUB_TRENDING_ENABLED: !Ref GithubTrendingEnabled
+        GITHUB_TRENDING_LIMIT: !Ref GithubTrendingLimit
+        HUGGINGFACE_ENABLED: !Ref HuggingFaceEnabled
+        HUGGINGFACE_LIMIT: !Ref HuggingFaceLimit
         LINKEDIN_ALWAYS: !Ref LinkedinAlways
         X_ENABLED: !Ref XEnabled
         X_HANDLES: !Ref XHandles
@@ -67,6 +71,24 @@ Parameters:
     Type: String
     Default: '4'
     Description: Maximum number of curated technology stories ingested per run.
+  GithubTrendingEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Whether to ingest trending GitHub repositories (AI, agents, tools).
+  GithubTrendingLimit:
+    Type: String
+    Default: '3'
+    Description: Maximum number of trending GitHub repositories ingested per run.
+  HuggingFaceEnabled:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Whether to ingest daily papers and trending models from Hugging Face.
+  HuggingFaceLimit:
+    Type: String
+    Default: '3'
+    Description: Maximum number of Hugging Face signals ingested per run.
   LinkedinAlways:
     Type: String
     Default: 'true'

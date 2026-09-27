@@ -52,6 +52,10 @@ que APORTE tu ángulo (no repitas ni parafrasees el tweet citado; el lector \
 ya lo ve), y en "quote_url" la "url" EXACTA de esa señal, sin cambiarla. El \
 resto de los tweets van con "kind": "original" (o sin el campo). Nunca \
 inventes una "quote_url" ni cites una señal que no sea "source": "x".
+- DESCUBRIMIENTO TECH (repos / papers): si hay señales "source": "github_trending" \
+o "source": "huggingface", podés usarlas para compartir un repo open-source copado \
+o un avance de IA ("Encontré este repo...", "Buen paper sobre..."), destacando qué \
+aporta a la práctica dev.
 - LinkedIn: incluí un objeto "linkedin" solo si "want_linkedin" es true; si \
 no, poné "linkedin": null. Cuando va y "linkedin_high_signal" es true, es un \
 post sustancioso: 3 a 6 párrafos cortos, primera persona, con el problema \
@@ -138,7 +142,9 @@ def build_user_message(
     has_personal = any(s.source in ("github", "calendar") for s in signals)
     has_x = any(s.source == "x" for s in signals)
     has_tech_news = any(s.source == "weekly_ai_news_digest" for s in signals)
-    has_news = has_tech_news or has_x
+    has_trending = any(s.source == "github_trending" for s in signals)
+    has_hf = any(s.source == "huggingface" for s in signals)
+    has_news = has_tech_news or has_x or has_trending or has_hf
     only_fallback = has_news and not has_personal and not user_note
 
     if user_note and not signals:
@@ -172,6 +178,18 @@ def build_user_message(
             " Si alguna señal 'source: x' vale la pena, sugerí un quote tweet "
             "(kind 'quote_tweet', quote_url = la url EXACTA de esa señal) con "
             "tu ángulo, en vez de un tweet original sobre lo mismo."
+        )
+
+    if has_trending:
+        base_instruction += (
+            " Si hay señales 'source: github_trending' destacadas, podés dedicar un "
+            "tweet a recomendar esa herramienta o repo open-source con tu perspectiva técnica."
+        )
+
+    if has_hf:
+        base_instruction += (
+            " Si hay señales 'source: huggingface', podés comentar el modelo o paper de IA "
+            "explicando en lenguaje simple qué resuelve o por qué importa."
         )
 
     if user_note:

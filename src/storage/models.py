@@ -15,8 +15,25 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
-SIGNAL_SOURCES = ("github", "calendar", "weekly_ai_news_digest", "x")
-SIGNAL_TYPES = ("commit", "pr", "new_repo", "event", "story", "tweet")
+SIGNAL_SOURCES = (
+    "github",
+    "calendar",
+    "weekly_ai_news_digest",
+    "x",
+    "github_trending",
+    "huggingface",
+)
+SIGNAL_TYPES = (
+    "commit",
+    "pr",
+    "new_repo",
+    "event",
+    "story",
+    "tweet",
+    "repo",
+    "paper",
+    "model",
+)
 
 PLATFORMS = ("twitter", "linkedin")
 DRAFT_STATUSES = ("pending", "approved", "discarded")

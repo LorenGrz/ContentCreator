@@ -59,6 +59,21 @@ TECH_NEWS_URL = os.environ.get(
 )
 TECH_NEWS_LIMIT = int(os.environ.get("TECH_NEWS_LIMIT", "4"))
 
+# GitHub Trending: newly active or high-interest open-source repos (AI, agents, tools)
+GITHUB_TRENDING_ENABLED = (
+    os.environ.get("GITHUB_TRENDING_ENABLED", "true").strip().lower() == "true"
+)
+GITHUB_TRENDING_LIMIT = int(os.environ.get("GITHUB_TRENDING_LIMIT", "3"))
+GITHUB_TRENDING_QUERY = os.environ.get(
+    "GITHUB_TRENDING_QUERY", "ai OR agent OR llm OR automation"
+)
+
+# Hugging Face: daily papers and trending open-weights models
+HUGGINGFACE_ENABLED = (
+    os.environ.get("HUGGINGFACE_ENABLED", "true").strip().lower() == "true"
+)
+HUGGINGFACE_LIMIT = int(os.environ.get("HUGGINGFACE_LIMIT", "3"))
+
 # Always draft at least one LinkedIn post per run — the most relevant thing of
 # the day, framed as a short reflection when nothing high-signal happened. Set
 # false to fall back to significance-gated LinkedIn only (merged PR / new repo

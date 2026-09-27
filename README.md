@@ -83,6 +83,8 @@ src/
     github_client.py     commits / PRs / new repos from the events feed             [done]
     calendar_client.py   Google Calendar events, OAuth2 refresh-token auth          [done]
     weekly_ai_news_digest_client.py curated AI/developer stories; always-on tech-news source [done]
+    github_trending_client.py trending GitHub AI/automation repos                    [done]
+    huggingface_client.py daily AI papers & trending open-source models              [done]
     x_client.py          followed X accounts via Nitter RSS; opt-in (X_ENABLED)      [done]
   generation/
     voice_examples.py    hardcoded few-shot voice bank (REPLACE the placeholders)  [done]
@@ -101,6 +103,8 @@ tests/
   test_github_client.py     events -> signals, stale/noise dropped, token from SSM
   test_calendar_client.py   event mapping, declined skip, day-window params
   test_weekly_ai_news_digest_client.py curated story parsing + limit
+  test_github_trending_client.py trending GitHub repos, limits, query formatting
+  test_huggingface_client.py daily papers + trending open-weights models
   test_x_client.py         Nitter RSS -> signals, RT/stale drop, instance fallback
   test_significance.py      LinkedIn gate: merged PR / new repo / keyword event
   test_prompts.py           prompt carries signals, recent topics, reflection mode

@@ -172,3 +172,41 @@ def test_linkedin_rationale_passed_through_when_wanted():
     data = json.loads(msg)
     assert data["want_linkedin"] is True
     assert data["linkedin_rationale"] == ["merged PR: [merged] Ship"]
+
+
+def test_github_trending_signal_adds_recommendation_instruction():
+    msg = build_user_message(
+        signals=[
+            _sig(
+                source="github_trending",
+                type="repo",
+                title="Super Agent",
+                external_id="gh1",
+            )
+        ],
+        recent_topics=[],
+        target_date="2026-08-29",
+        want_linkedin=False,
+    )
+    data = json.loads(msg)
+    assert data["mode"] == "tech_reflection"
+    assert "source: github_trending" in data["instructions"]
+
+
+def test_huggingface_signal_adds_instruction():
+    msg = build_user_message(
+        signals=[
+            _sig(
+                source="huggingface",
+                type="paper",
+                title="Reasoning Paper",
+                external_id="hf1",
+            )
+        ],
+        recent_topics=[],
+        target_date="2026-08-29",
+        want_linkedin=False,
+    )
+    data = json.loads(msg)
+    assert data["mode"] == "tech_reflection"
+    assert "source: huggingface" in data["instructions"]
