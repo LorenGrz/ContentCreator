@@ -9,12 +9,18 @@ aprobar/editar el borrador.
 - Corre una vez al día por schedule (EventBridge) y también on-demand:
   mandarle un mensaje al bot en Telegram dispara una corrida ya, usando el
   texto del mensaje como steering (`user_note`) para el modelo.
+- Ingesta de GitHub con fallback a commit `head`: extrae eventos y commits
+  reales de Loren (ej. StudyQuest, Roadmap, etc.), garantizando que la actividad
+  personal siempre tenga prioridad.
 - Todos los días saca al menos un tweet con onda "tech news" desde el [Weekly
-  AI News Digest](https://elbruno.github.io/weekly-ai-news-digest/) como fuente
-  de la verdad (`AlwaysTechNews`, on por default) y al menos un borrador de LinkedIn
-  (`LinkedinAlways`, on por default) — un gate basado en reglas (PR
-  mergeado, repo nuevo, evento de calendario) decide si se enmarca como post
-  sustancial o como reflexión corta.
+  AI News Digest](https://elbruno.github.io/weekly-ai-news-digest/) con filtro
+  estricto de diversidad de proveedores (tope de 1 noticia para Microsoft/Copilot)
+  y al menos un borrador de LinkedIn (`LinkedinAlways`, on por default) — un gate
+  basado en reglas decide si se enmarca como post sustancial o reflexión corta.
+- Mix diario balanceado en prompts: Tweet 1 enfocado en trabajo/commit real de
+  Loren, Tweet 2 en descubrimiento open-source (GitHub Trending / Hugging Face),
+  Tweet 3 en debate/noticia tech, y regla anti-monopolio (prohibido repetir el
+  mismo proveedor en más de un borrador por corrida).
 - Puede seguir cuentas de X/Twitter vía un bridge RSS de Nitter (`XEnabled`,
   **off por default** — las instancias de Nitter son inestables). Si un
   borrador se apoya en un tweet seguido, propone un quote tweet en vez de un
@@ -39,4 +45,4 @@ aprobar/editar el borrador.
 
 ## Última revisión
 
-2026-09-04 — primera vez que se documenta en CLAUDE.md.
+2026-09-29 — corrección de ingesta de commits reales de GitHub, límite de proveedor en digest y mix diario de prompts.
