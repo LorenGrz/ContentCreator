@@ -64,6 +64,14 @@ class FakeRepo:
     def clear_chat_state(self, chat_id):
         self.state = {"mode": "idle"}
 
+    def claim_update(self, update_id: int) -> bool:
+        if not hasattr(self, "_seen_updates"):
+            self._seen_updates = set()
+        if update_id in self._seen_updates:
+            return False
+        self._seen_updates.add(update_id)
+        return True
+
 
 # --- send_draft ----------------------------------------------------------
 
@@ -96,8 +104,13 @@ def test_send_draft_noop_without_chat_id(monkeypatch):
 
 
 def _cb(data, cid=6891166315, mid=555):
-    return {"callback_query": {"id": "cq1", "data": data,
-                               "message": {"chat": {"id": cid}, "message_id": mid}}}
+    return {
+        "callback_query": {
+            "id": "cq1",
+            "data": data,
+            "message": {"chat": {"id": cid}, "message_id": mid},
+        }
+    }
 
 
 def test_approve_sends_ready_text_with_copy_and_edit_buttons(monkeypatch):
@@ -333,3 +346,81 @@ def test_message_from_other_chat_is_ignored(monkeypatch):
     out = tg.handle_update(_msg("hola", chat_id=999999), repo=FakeRepo())
     assert out["handled"] is False
     assert out["why"] == "unauthorised chat"
+
+
+def test_handle_update_deduplicates_by_update_id(monkeypatch):
+    monkeypatch.setattr(tg.config, "TELEGRAM_CHAT_ID", "6891166315")
+    sent = []
+    monkeypatch.setattr(tg, "_send_message", lambda cid, text, s=None, **kw: sent.append(text))
+    monkeypatch.setattr("jobs.daily_job.run", lambda *a, **kw: {"drafts": ["d1"]})
+    repo = FakeRepo()
+
+    update = {"update_id": 9999, "message": {"text": "/run", "chat": {"id": 6891166315}}}
+    first = tg.handle_update(update, repo=repo)
+    assert first["handled"] is True
+    assert "duplicate" not in first
+    assert len(sent) == 1
+
+    # Second arrival of the same update_id (Telegram retry) must be dropped
+    second = tg.handle_update(update, repo=repo)
+    assert second["handled"] is True
+    assert second["duplicate"] is True
+    assert len(sent) == 1  # No second message sent
+
+
+def test_edit_callback_already_in_edit_session_does_not_repeat_prompt(monkeypatch):
+    monkeypatch.setattr(tg.config, "TELEGRAM_CHAT_ID", "6891166315")
+    sent = []
+    calls = []
+    monkeypatch.setattr(tg, "_call", lambda m, p, s=None: calls.append((m, p)) or {"ok": True})
+    monkeypatch.setattr(tg, "_send_message", _capture(sent))
+    repo = FakeRepo(drafts=[_draft(content="draft 1")])
+
+    # First edit click: sends the prompt message
+    out1 = tg.handle_update(_cb("e:2026-08-29:t:deadbeef"), repo=repo)
+    assert out1["handled"] is True
+    assert len(sent) == 1
+    assert "Mandame el ajuste" in sent[0][0]
+
+    # Second edit click (or retried callback) for the same draft: does NOT repeat prompt
+    out2 = tg.handle_update(_cb("e:2026-08-29:t:deadbeef"), repo=repo)
+    assert out2["handled"] is True
+    assert len(sent) == 1  # Still 1 message, no spam
+
+
+def test_message_mandame_recomendaciones_exits_edit_and_triggers_clean_generation(monkeypatch):
+    monkeypatch.setattr(tg.config, "TELEGRAM_CHAT_ID", "6891166315")
+    sent = []
+    daily_calls = []
+    monkeypatch.setattr(tg, "_send_message", lambda cid, text, s=None, **kw: sent.append(text))
+    monkeypatch.setattr(
+        "jobs.daily_job.run",
+        lambda *a, **kw: daily_calls.append(kw) or {"drafts": ["d1"]},
+    )
+    repo = FakeRepo(
+        drafts=[_draft(content="draft 1")],
+        state=_fresh_state(),
+    )
+
+    out = tg.handle_update(_msg("mandame recomendaciones"), repo=repo)
+
+    assert out["action"] == "run"
+    assert repo.state == {"mode": "idle"}  # edit session was interrupted
+    assert daily_calls == [{"reason": "telegram", "user_note": ""}]
+    assert sent[0] == "✍️ Generando borradores…"
+
+
+def test_message_cancel_exits_edit_session(monkeypatch):
+    monkeypatch.setattr(tg.config, "TELEGRAM_CHAT_ID", "6891166315")
+    sent = []
+    monkeypatch.setattr(tg, "_send_message", lambda cid, text, s=None, **kw: sent.append(text))
+    repo = FakeRepo(
+        drafts=[_draft(content="draft 1")],
+        state=_fresh_state(),
+    )
+
+    out = tg.handle_update(_msg("cancelar"), repo=repo)
+
+    assert out["action"] == "finalize"
+    assert sent == ["✅ Sesión de edición cerrada."]
+    assert repo.state == {"mode": "idle"}

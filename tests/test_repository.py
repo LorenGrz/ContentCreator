@@ -122,3 +122,12 @@ def test_update_draft_status_missing_draft_returns_none(dynamodb_table):
         "2026-08-30", "DRAFT#twitter#nope", "approved", "2026-08-30T10:00:00+00:00"
     )
     assert result is None
+
+
+def test_claim_update_deduplication(dynamodb_table):
+    repo = _repo(dynamodb_table)
+    assert repo.claim_update(12345) is True
+    # Duplicate update_id must be rejected
+    assert repo.claim_update(12345) is False
+    # Distinct update_id is allowed
+    assert repo.claim_update(12346) is True

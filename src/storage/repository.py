@@ -7,7 +7,7 @@ No GSI: at this scale (one user, a handful of drafts/day) every read is a
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from boto3.dynamodb.conditions import Key
 
@@ -134,3 +134,27 @@ class Repository:
         # Put/Update/Get/Query only (no DeleteItem). ``_edit_session`` treats
         # any non-"awaiting_edit" mode as "no open session".
         self._table.put_item(Item={**self._chat_key(chat_id), "mode": "idle"})
+
+    # --- Update Deduplication ------------------------------------------
+
+    def claim_update(self, update_id: int) -> bool:
+        """Atomic check-and-set to deduplicate incoming Telegram updates.
+
+        Returns True if this update_id is new and now claimed.
+        Returns False if it has already been processed.
+        """
+        from botocore.exceptions import ClientError
+
+        pk = f"TGUPDATE#{update_id}"
+        sk = "SEEN"
+        now = datetime.now(UTC).isoformat(timespec="seconds")
+        try:
+            self._table.put_item(
+                Item={"pk": pk, "sk": sk, "claimed_at": now},
+                ConditionExpression="attribute_not_exists(pk)",
+            )
+            return True
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                return False
+            raise
