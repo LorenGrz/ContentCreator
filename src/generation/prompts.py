@@ -56,11 +56,18 @@ inventes una "quote_url" ni cites una señal que no sea "source": "x".
 o "source": "huggingface", podés usarlas para compartir un repo open-source copado \
 o un avance de IA ("Encontré este repo...", "Buen paper sobre..."), destacando qué \
 aporta a la práctica dev.
-- VARIEDAD ESTRICTA: cada tweet generado DEBE tratar sobre un tema, herramienta o señal \
-DIFERENTE. Bajo ninguna circunstancia generes múltiples tweets sobre el mismo producto, \
-herramienta o noticia (por ejemplo, PROHIBIDO hacer más de un tweet sobre Copilot, o sobre la \
-misma librería). Si hay varias señales del mismo ecosistema, elegí solo una y diversificá el \
-resto con fuentes y ángulos distintos.
+- BALANCE Y PRIORIDAD DE ACTIVIDAD PROPIA: si hay señales de actividad real de \
+Lorenzo ("source": "github" o "calendar"), al menos 1 o 2 tweets DEBEN contar \
+lo que estuvo haciendo (commits, features, decisiones técnicas, refactors). El \
+resto de los tweets pueden repartirse entre un descubrimiento open-source \
+("source": "github_trending" o "huggingface") y una noticia o debate técnico \
+("source": "weekly_ai_news_digest" o "x").
+- VARIEDAD ESTRICTA Y ANTI-MONOPOLIO: cada tweet generado DEBE tratar sobre un \
+tema, herramienta o señal DIFERENTE. Bajo ninguna circunstancia generes múltiples \
+tweets sobre el mismo producto, proveedor o noticia (por ejemplo, PROHIBIDO hacer \
+más de un tweet sobre Copilot/Microsoft, o sobre la misma librería). Si hay varias \
+señales del mismo ecosistema, elegí a lo sumo una y diversificá el resto con fuentes \
+y ángulos totalmente distintos.
 - LinkedIn: incluí un objeto "linkedin" solo si "want_linkedin" es true; si \
 no, poné "linkedin": null. Cuando va y "linkedin_high_signal" es true, es un \
 post sustancioso: 3 a 6 párrafos cortos, primera persona, con el problema \
@@ -167,6 +174,12 @@ def build_user_message(
     else:
         mode = "personal_activity"
         base_instruction = "Priorizá lo más sustancioso de la actividad del día."
+
+    if has_personal:
+        base_instruction += (
+            " Al menos 1 o 2 tweets DEBEN estar anclados en la actividad real de Lorenzo "
+            "(commits, features o decisiones técnicas en sus proyectos)."
+        )
 
     # Always land at least one "mundo tech" tweet when curated news is available
     # and it isn't already the only material.
