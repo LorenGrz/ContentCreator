@@ -96,3 +96,35 @@ def test_reads_token_from_ssm_when_not_passed(monkeypatch):
 
     assert calls["name"] == config.PARAM_GITHUB_TOKEN
     assert responses.calls[0].request.headers["Authorization"] == "Bearer tok"
+
+
+@responses.activate
+def test_push_event_with_missing_commits_fetches_head_commit(monkeypatch):
+    monkeypatch.setattr(config, "get_parameter", lambda *a, **k: "tok")
+    now = datetime.now(UTC)
+    recent = (now - timedelta(hours=1)).isoformat()
+    events = [
+        {
+            "type": "PushEvent",
+            "created_at": recent,
+            "repo": {"name": "LorenGrz/StudyQuest"},
+            "payload": {
+                "head": "9876543210ab",
+                "commits": None,
+            },
+        }
+    ]
+    responses.add(responses.GET, _EVENTS_URL, json=events, status=200)
+    responses.add(
+        responses.GET,
+        "https://api.github.com/repos/LorenGrz/StudyQuest/commits/9876543210ab",
+        json={"commit": {"message": "Merge feature/mercadopago-integration"}},
+        status=200,
+    )
+
+    signals = fetch_github_signals(owner="LorenGrz", lookback_hours=24)
+    assert len(signals) == 1
+    assert signals[0].type == "commit"
+    assert signals[0].title == "Merge feature/mercadopago-integration"
+    assert signals[0].external_id == "9876543210ab"
+    assert signals[0].url == "https://github.com/LorenGrz/StudyQuest/commit/9876543210ab"

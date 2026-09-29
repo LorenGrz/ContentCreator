@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections import defaultdict
 from html.parser import HTMLParser
 from urllib.parse import urljoin
 
@@ -92,6 +93,25 @@ class _DigestParser(HTMLParser):
             self._buffer.append(data)
 
 
+_VENDOR_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "microsoft": ("microsoft", "azure", "copilot", "windows"),
+    "openai": ("openai", "chatgpt"),
+    "anthropic": ("anthropic", "claude"),
+    "google": ("google", "gemini"),
+    "meta": ("meta", "llama", "muse"),
+    "nvidia": ("nvidia",),
+    "amazon": ("aws", "amazon", "bedrock"),
+}
+
+
+def _detect_vendors(story: dict[str, object]) -> set[str]:
+    title = str(story.get("title") or "")
+    source = str(story.get("source") or "")
+    tags = " ".join(str(t) for t in (story.get("tags") or []))
+    text = f"{title} {source} {tags}".lower()
+    return {v for v, kws in _VENDOR_KEYWORDS.items() if any(kw in text for kw in kws)}
+
+
 def fetch_weekly_ai_news_signals(
     *,
     limit: int = 5,
@@ -109,32 +129,37 @@ def fetch_weekly_ai_news_signals(
     parser.feed(response.text)
     day = today_local_iso()
     signals: list[Signal] = []
-    # Filter for story diversity to avoid multiple items on the same dominant product
+
+    # Filter for story and vendor diversity to prevent vendor monopolization
     selected_stories: list[dict[str, object]] = []
-    seen_entities: set[str] = set()
+    vendor_counts: dict[str, int] = defaultdict(int)
+
+    # Pass 1: Maximum 1 story per detected vendor
     for story in parser.stories:
-        title_lower = str(story.get("title", "")).lower()
-        tags_lower = [str(t).lower() for t in (story.get("tags") or [])]
-        dominant = [
-            w
-            for w in ("copilot", "azure", "openai", "claude", "gemini", "slack")
-            if w in title_lower or any(w in t for t in tags_lower)
-        ]
-        if any(w in seen_entities for w in dominant):
+        vendors = _detect_vendors(story)
+        if any(vendor_counts[v] >= 1 for v in vendors):
             continue
         selected_stories.append(story)
-        for w in dominant:
-            seen_entities.add(w)
+        for v in vendors:
+            vendor_counts[v] += 1
         if len(selected_stories) >= limit:
             break
 
-    # Backfill if diversity filtering left us below the requested limit
+    # Pass 2: Backfill if needed, strictly capping Microsoft to 1
     if len(selected_stories) < limit:
         for story in parser.stories:
-            if story not in selected_stories:
-                selected_stories.append(story)
-                if len(selected_stories) >= limit:
-                    break
+            if story in selected_stories:
+                continue
+            vendors = _detect_vendors(story)
+            if "microsoft" in vendors and vendor_counts["microsoft"] >= 1:
+                continue
+            if any(vendor_counts[v] >= 2 for v in vendors):
+                continue
+            selected_stories.append(story)
+            for v in vendors:
+                vendor_counts[v] += 1
+            if len(selected_stories) >= limit:
+                break
 
     for story in selected_stories:
         story_url = str(story["url"])

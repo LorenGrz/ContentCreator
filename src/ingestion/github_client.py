@@ -64,7 +64,7 @@ def fetch_github_signals(
             if parse_iso(created) < cutoff:
                 reached_cutoff = True
                 break
-            for sig in _event_to_signals(ev):
+            for sig in _event_to_signals(ev, http=http, headers=headers):
                 if sig.sk in seen:
                     continue
                 seen.add(sig.sk)
@@ -77,7 +77,11 @@ def fetch_github_signals(
     return signals
 
 
-def _event_to_signals(ev: dict) -> list[Signal]:
+def _event_to_signals(
+    ev: dict,
+    http: requests.Session | None = None,
+    headers: dict | None = None,
+) -> list[Signal]:
     etype = ev.get("type")
     repo = (ev.get("repo") or {}).get("name", "")
     created = ev.get("created_at", "")
@@ -86,7 +90,25 @@ def _event_to_signals(ev: dict) -> list[Signal]:
 
     if etype == "PushEvent":
         out: list[Signal] = []
-        for commit in payload.get("commits", []):
+        commits = payload.get("commits") or []
+        head = payload.get("head")
+
+        # GitHub's events feed frequently returns commits=None; fetch the head commit as fallback
+        if not commits and head and repo and http and headers:
+            try:
+                c_resp = http.get(
+                    f"{_API}/repos/{repo}/commits/{head}",
+                    headers=headers,
+                    timeout=_TIMEOUT,
+                )
+                if c_resp.ok:
+                    c_data = c_resp.json()
+                    c_msg = (c_data.get("commit", {}).get("message") or "").strip()
+                    commits = [{"sha": head, "message": c_msg, "distinct": True}]
+            except Exception:
+                log.warning("failed to fetch head commit %s for %s", head, repo)
+
+        for commit in commits:
             sha = commit.get("sha", "")
             if not sha or commit.get("distinct") is False:
                 continue

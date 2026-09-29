@@ -210,3 +210,20 @@ def test_huggingface_signal_adds_instruction():
     data = json.loads(msg)
     assert data["mode"] == "tech_reflection"
     assert "source: huggingface" in data["instructions"]
+
+
+def test_personal_activity_mandates_activity_anchor_in_instructions():
+    msg = build_user_message(
+        signals=[_sig(title="Add MP checkout in StudyQuest", external_id="c1")],
+        recent_topics=[],
+        target_date="2026-08-29",
+        want_linkedin=False,
+    )
+    data = json.loads(msg)
+    assert data["mode"] == "personal_activity"
+    assert "Al menos 1 o 2 tweets DEBEN estar anclados en la actividad real" in data["instructions"]
+
+
+def test_system_prompt_enforces_anti_monopoly_and_balance():
+    assert "VARIEDAD ESTRICTA Y ANTI-MONOPOLIO" in SYSTEM_PROMPT
+    assert "BALANCE Y PRIORIDAD DE ACTIVIDAD PROPIA" in SYSTEM_PROMPT
