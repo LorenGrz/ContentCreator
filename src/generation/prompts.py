@@ -56,6 +56,11 @@ inventes una "quote_url" ni cites una señal que no sea "source": "x".
 o "source": "huggingface", podés usarlas para compartir un repo open-source copado \
 o un avance de IA ("Encontré este repo...", "Buen paper sobre..."), destacando qué \
 aporta a la práctica dev.
+- VARIEDAD ESTRICTA: cada tweet generado DEBE tratar sobre un tema, herramienta o señal \
+DIFERENTE. Bajo ninguna circunstancia generes múltiples tweets sobre el mismo producto, \
+herramienta o noticia (por ejemplo, PROHIBIDO hacer más de un tweet sobre Copilot, o sobre la \
+misma librería). Si hay varias señales del mismo ecosistema, elegí solo una y diversificá el \
+resto con fuentes y ángulos distintos.
 - LinkedIn: incluí un objeto "linkedin" solo si "want_linkedin" es true; si \
 no, poné "linkedin": null. Cuando va y "linkedin_high_signal" es true, es un \
 post sustancioso: 3 a 6 párrafos cortos, primera persona, con el problema \
@@ -191,6 +196,12 @@ def build_user_message(
             " Si hay señales 'source: huggingface', podés comentar el modelo o paper de IA "
             "explicando en lenguaje simple qué resuelve o por qué importa."
         )
+
+    base_instruction += (
+        " Mantené estricta VARIEDAD temática entre los tweets: que cada uno hable de "
+        "una herramienta, noticia o repo totalmente diferente (no repitas el mismo tema "
+        "ni producto)."
+    )
 
     if user_note:
         base_instruction += " Seguí lo que pide 'user_note' de Lorenzo."

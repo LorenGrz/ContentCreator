@@ -109,7 +109,34 @@ def fetch_weekly_ai_news_signals(
     parser.feed(response.text)
     day = today_local_iso()
     signals: list[Signal] = []
-    for story in parser.stories[:limit]:
+    # Filter for story diversity to avoid multiple items on the same dominant product
+    selected_stories: list[dict[str, object]] = []
+    seen_entities: set[str] = set()
+    for story in parser.stories:
+        title_lower = str(story.get("title", "")).lower()
+        tags_lower = [str(t).lower() for t in (story.get("tags") or [])]
+        dominant = [
+            w
+            for w in ("copilot", "azure", "openai", "claude", "gemini", "slack")
+            if w in title_lower or any(w in t for t in tags_lower)
+        ]
+        if any(w in seen_entities for w in dominant):
+            continue
+        selected_stories.append(story)
+        for w in dominant:
+            seen_entities.add(w)
+        if len(selected_stories) >= limit:
+            break
+
+    # Backfill if diversity filtering left us below the requested limit
+    if len(selected_stories) < limit:
+        for story in parser.stories:
+            if story not in selected_stories:
+                selected_stories.append(story)
+                if len(selected_stories) >= limit:
+                    break
+
+    for story in selected_stories:
         story_url = str(story["url"])
         external_id = hashlib.sha256(story_url.encode()).hexdigest()[:24]
         why = str(story.get("why", ""))
