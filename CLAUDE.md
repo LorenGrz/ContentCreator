@@ -29,6 +29,12 @@ aprobar/editar el borrador.
   ("más corto", "sacá el emoji") → Bedrock reescribe → vuelve con los mismos
   botones. **Copiar** usa el botón nativo de Telegram (tope 256 caracteres);
   si el texto es más largo, solo queda "Abrir en X" + el texto seleccionable.
+- Deduplicación y triggers en Telegram: los `update_id` entrantes se reclaman
+  atómicamente en DynamoDB para evitar repeticiones por reintentos de Telegram.
+  El botón de edición es idempotente (no reenvía el prompt si la sesión ya
+  está abierta). Palabras como "mandame recomendaciones", "dame recomendaciones"
+  o "generar" interrumpen cualquier sesión de edición previa y disparan una
+  generación limpia de borradores.
 
 ## Stack
 
