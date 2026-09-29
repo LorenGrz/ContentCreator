@@ -27,6 +27,7 @@ forged updates never reach here. Callback data is
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from urllib.parse import quote
 
@@ -43,12 +44,56 @@ _CODE_PLATFORM = {v: k for k, v in _PLATFORM_CODE.items()}
 
 # How long an edit session stays open after the last activity.
 _EDIT_TTL_SECONDS = 2 * 3600
+
+_CANCEL_WORDS = {"cancelar", "cancela", "cancel", "/cancel", "salir"}
 # Text that closes an edit session, leaving the draft as-is.
 _FINALIZE_WORDS = {
-    "ok", "okay", "listo", "dale", "así está", "asi esta", "así está bien",
-    "asi esta bien", "está bien", "esta bien", "dejalo así", "dejalo asi",
-    "perfecto", "va así", "va asi",
+    "ok",
+    "okay",
+    "listo",
+    "dale",
+    "así está",
+    "asi esta",
+    "así está bien",
+    "asi esta bien",
+    "está bien",
+    "esta bien",
+    "dejalo así",
+    "dejalo asi",
+    "perfecto",
+    "va así",
+    "va asi",
+    *_CANCEL_WORDS,
 }
+
+_GENERATION_TRIGGERS = {
+    "/run",
+    "/generar",
+    "/recomendaciones",
+    "/borradores",
+    "generar",
+    "genera",
+    "generá",
+    "recomendaciones",
+    "borradores",
+    "ideas",
+}
+
+_GENERATION_PATTERN = re.compile(
+    r"^(mandame|mandame|dame|pasame|tirame|quiero|necesito|armame)?"
+    r"\s*(mas|más|nuevas?|algunas?)?"
+    r"\s*(recomendaciones|borradores|ideas)"
+    r"(\s*por\s*fa(vor)?)?$"
+)
+
+
+def _is_generation_trigger(text: str) -> bool:
+    t = re.sub(r"[^\w\s/]", "", text.strip().lower())
+    t = " ".join(t.split())
+    if t in _GENERATION_TRIGGERS:
+        return True
+    return bool(_GENERATION_PATTERN.match(t))
+
 
 _USAGE = (
     "Escribime qué querés que borronee y lo genero al toque "
@@ -159,6 +204,12 @@ def send_draft(
 
 
 def handle_update(update: dict, *, repo=None, session: requests.Session | None = None) -> dict:
+    repo = _get_repo(repo)
+    update_id = update.get("update_id")
+    if update_id is not None and not repo.claim_update(update_id):
+        log.info("ignoring already processed update %s", update_id)
+        return {"ok": True, "handled": True, "duplicate": True}
+
     if update.get("callback_query"):
         return _handle_callback(update["callback_query"], repo=repo, session=session)
     if update.get("message"):
@@ -205,15 +256,21 @@ def _result_keyboard(draft) -> dict:
         # text + url of a tweet -> X's compose window opens as a quote tweet.
         quoted = quote(draft.quote_url, safe="")
         row.append(
-            {"text": "✍️ Abrir en X",
-             "url": f"https://twitter.com/intent/tweet?text={encoded}&url={quoted}"}
+            {
+                "text": "✍️ Abrir en X",
+                "url": f"https://twitter.com/intent/tweet?text={encoded}&url={quoted}",
+            }
         )
     elif draft.platform == "twitter":
-        row.append({"text": "✍️ Abrir en X", "url": f"https://twitter.com/intent/tweet?text={encoded}"})
+        row.append(
+            {"text": "✍️ Abrir en X", "url": f"https://twitter.com/intent/tweet?text={encoded}"}
+        )
     else:
         row.append(
-            {"text": "💼 Abrir LinkedIn",
-             "url": f"https://www.linkedin.com/feed/?shareActive=true&text={encoded}"}
+            {
+                "text": "💼 Abrir LinkedIn",
+                "url": f"https://www.linkedin.com/feed/?shareActive=true&text={encoded}",
+            }
         )
     rows = [row] if row else []
     if _is_quote(draft):
@@ -238,11 +295,23 @@ def _handle_message(message: dict, *, repo=None, session: requests.Session | Non
     repo = _get_repo(repo)
     state = _edit_session(repo, chat_id)
 
+    # Interrupt any pending edit session if user wants new recommendations or runs commands
+    if _is_generation_trigger(text) or text.lower() in ("/start", "/help", "/run", "/generar"):
+        if state:
+            repo.clear_chat_state(chat_id)
+            state = None
+
     # --- inside an edit session -------------------------------------------
     if state:
-        if not text or text.lower() in _FINALIZE_WORDS:
+        text_lower = text.lower()
+        if not text or text_lower in _FINALIZE_WORDS:
             repo.clear_chat_state(chat_id)
-            _send_message(chat_id, "✅ Listo, quedó guardado.", session)
+            reply = (
+                "✅ Sesión de edición cerrada."
+                if text_lower in _CANCEL_WORDS
+                else "✅ Listo, quedó guardado."
+            )
+            _send_message(chat_id, reply, session)
             return {"ok": True, "handled": True, "action": "finalize"}
 
         draft = repo.get_draft(state["draft_date"], state["draft_sk"])
@@ -273,7 +342,7 @@ def _handle_message(message: dict, *, repo=None, session: requests.Session | Non
         _send_message(chat_id, _USAGE, session)
         return {"ok": True, "handled": True, "action": "usage"}
 
-    note = "" if text.lower() in ("/run", "/generar") else text
+    note = "" if _is_generation_trigger(text) else text
     _send_message(chat_id, "✍️ Generando borradores…", session)
 
     from jobs.daily_job import run
@@ -348,19 +417,27 @@ def _handle_callback(cq: dict, *, repo=None, session: requests.Session | None = 
             ack = "No lo encuentro"
             followups.append({"text": "No encuentro ese borrador."})
         else:
-            repo.set_chat_state(
-                str(chat_id),
-                mode="awaiting_edit",
-                draft_date=target_date,
-                draft_sk=sk,
-                platform=platform,
-                updated_at=_now(),
-            )
-            ack = "Editando"
-            followups.append(
-                {"text": '✍️ Mandame el ajuste (tono, largo, agregá o sacá algo). '
-                         'Cuando estés, escribí "listo".'}
-            )
+            current_state = _edit_session(repo, str(chat_id))
+            if current_state and current_state.get("draft_sk") == sk:
+                ack = "Ya estás editando este borrador"
+            else:
+                repo.set_chat_state(
+                    str(chat_id),
+                    mode="awaiting_edit",
+                    draft_date=target_date,
+                    draft_sk=sk,
+                    platform=platform,
+                    updated_at=_now(),
+                )
+                ack = "Editando"
+                followups.append(
+                    {
+                        "text": (
+                            "✍️ Mandame el ajuste (tono, largo, agregá o sacá algo). "
+                            'Cuando estés, escribí "listo".'
+                        )
+                    }
+                )
 
     else:  # "k" — legacy "Dejalo así" button on older messages
         repo.clear_chat_state(str(chat_id))
@@ -369,15 +446,19 @@ def _handle_callback(cq: dict, *, repo=None, session: requests.Session | None = 
     # Telegram side-effects — the DB change is already done, so each is
     # isolated: one failing (e.g. a stale callback id) must not skip the rest
     # or 500 the webhook.
-    _safe(lambda: _call(
-        "answerCallbackQuery", {"callback_query_id": cq.get("id"), "text": ack}, session
-    ))
+    _safe(
+        lambda: _call(
+            "answerCallbackQuery", {"callback_query_id": cq.get("id"), "text": ack}, session
+        )
+    )
     if strip:
         _safe(lambda: _strip_buttons(cq_message, session))
     for fp in followups:
-        _safe(lambda fp=fp: _send_message(
-            str(chat_id), fp["text"], session, reply_markup=fp.get("reply_markup")
-        ))
+        _safe(
+            lambda fp=fp: _send_message(
+                str(chat_id), fp["text"], session, reply_markup=fp.get("reply_markup")
+            )
+        )
 
     log.info("callback %s on %s", action, sk)
     return result
