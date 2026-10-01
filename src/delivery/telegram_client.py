@@ -394,15 +394,39 @@ def _handle_callback(cq: dict, *, repo=None, session: requests.Session | None = 
     result = {"ok": True, "handled": True, "sk": sk, "action": action}
 
     if action == "a":
-        draft = repo.update_draft_status(target_date, sk, "approved", _now())
-        status = draft.status if draft else "approved"
-        ack = f"Marcado como {status}"
-        result["status"] = status
-        if draft and draft.status == "approved":
-            # The ready-to-paste text + Copiar / Abrir en X / Editar buttons.
-            followups.append({"text": draft.content, "reply_markup": _result_keyboard(draft)})
-        elif draft:
+        draft = repo.get_draft(target_date, sk)
+        if not draft:
+            ack = "No lo encuentro"
+            followups.append({"text": "No encuentro ese borrador."})
+        elif draft.status != "pending":
+            ack = f"Ya estaba {draft.status}"
             followups.append({"text": f"Ese borrador ya estaba {draft.status}."})
+            result["status"] = draft.status
+        else:
+            # Elevate draft to pro quality using Claude Sonnet before approving
+            from generation.llm_client import refine
+
+            try:
+                refined = refine(
+                    draft.content,
+                    platform=draft.platform,
+                    topic_tags=draft.topic_tags,
+                    is_quote=_is_quote(draft),
+                )
+                if refined:
+                    draft.content = refined
+                    repo.update_draft_content(target_date, sk, refined, _now())
+            except Exception:
+                log.warning(
+                    "refinement with pro model failed; falling back to original draft",
+                    exc_info=True,
+                )
+
+            draft = repo.update_draft_status(target_date, sk, "approved", _now())
+            status = draft.status if draft else "approved"
+            ack = "Aprobado y pulido"
+            result["status"] = status
+            followups.append({"text": draft.content, "reply_markup": _result_keyboard(draft)})
 
     elif action == "d":
         draft = repo.update_draft_status(target_date, sk, "discarded", _now())

@@ -117,19 +117,46 @@ def test_approve_sends_ready_text_with_copy_and_edit_buttons(monkeypatch):
     sent = []
     monkeypatch.setattr(tg, "_call", lambda m, p, s=None: {"ok": True})
     monkeypatch.setattr(tg, "_send_message", _capture(sent))
+    monkeypatch.setattr(
+        "generation.llm_client.refine",
+        lambda text, **kw: f"refined: {text}",
+    )
     repo = FakeRepo(drafts=[_draft(content="shipped the storage layer")])
 
     out = tg.handle_update(_cb("a:2026-08-29:t:deadbeef"), repo=repo)
 
     assert out["status"] == "approved"
     assert repo.drafts[("2026-08-29", "DRAFT#twitter#deadbeef")].status == "approved"
+    assert repo.drafts[("2026-08-29", "DRAFT#twitter#deadbeef")].content == (
+        "refined: shipped the storage layer"
+    )
     assert repo.state is None  # approve no longer forces an edit session
     text, kw = sent[0]
-    assert text == "shipped the storage layer"
+    assert text == "refined: shipped the storage layer"
     kb = kw["reply_markup"]["inline_keyboard"]
-    assert kb[0][0]["copy_text"]["text"] == "shipped the storage layer"
+    assert kb[0][0]["copy_text"]["text"] == "refined: shipped the storage layer"
     assert kb[0][1]["url"].startswith("https://twitter.com/intent/tweet?text=")
     assert kb[1][0]["callback_data"] == "e:2026-08-29:t:deadbeef"
+
+
+def test_approve_refine_failure_falls_back_to_original_draft(monkeypatch):
+    sent = []
+    monkeypatch.setattr(tg, "_call", lambda m, p, s=None: {"ok": True})
+    monkeypatch.setattr(tg, "_send_message", _capture(sent))
+
+    def _broken_refine(*a, **kw):
+        raise RuntimeError("Bedrock unavailable")
+
+    monkeypatch.setattr("generation.llm_client.refine", _broken_refine)
+    repo = FakeRepo(drafts=[_draft(content="original draft text")])
+
+    out = tg.handle_update(_cb("a:2026-08-29:t:deadbeef"), repo=repo)
+
+    assert out["status"] == "approved"
+    assert repo.drafts[("2026-08-29", "DRAFT#twitter#deadbeef")].content == "original draft text"
+    text, _ = sent[0]
+    assert text == "original draft text"
+
 
 
 def test_linkedin_high_signal_draft_shows_relevante_marker():
@@ -172,6 +199,7 @@ def test_approve_long_tweet_omits_copy_button_keeps_open_in_x(monkeypatch):
     sent = []
     monkeypatch.setattr(tg, "_call", lambda m, p, s=None: {"ok": True})
     monkeypatch.setattr(tg, "_send_message", _capture(sent))
+    monkeypatch.setattr("generation.llm_client.refine", lambda text, **kw: text)
     long_text = "x" * 270
     repo = FakeRepo(drafts=[_draft(content=long_text)])
 

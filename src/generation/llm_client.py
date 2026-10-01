@@ -17,8 +17,10 @@ import re
 import config
 from generation.prompts import (
     MAX_TWEETS,
+    REFINE_SYSTEM_PROMPT,
     REVISE_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
+    build_refine_message,
     build_revise_message,
     build_user_message,
 )
@@ -146,13 +148,45 @@ def generate(
     return parse_model_json(raw)
 
 
+def refine(
+    content: str,
+    *,
+    platform: str = "twitter",
+    topic_tags: list[str] | None = None,
+    is_quote: bool = False,
+    model_id: str | None = None,
+) -> str:
+    """Elevate an approved draft to professional quality using the high-tier model.
+
+    Maintains the same topic, facts, and voice while improving punch and rhythm.
+    Returns plain text ready to paste.
+    """
+    from strands import Agent
+    from strands.models import BedrockModel
+
+    chosen_model = model_id or config.BEDROCK_PRO_MODEL_ID
+    model = BedrockModel(model_id=chosen_model, temperature=0.5)
+    agent = Agent(model=model, system_prompt=REFINE_SYSTEM_PROMPT)
+    message = build_refine_message(
+        content=content,
+        platform=platform,
+        topic_tags=topic_tags,
+        is_quote=is_quote,
+    )
+    text = str(agent(message)).strip().strip('"').strip()
+    if platform == "twitter" and len(text) > TWEET_MAX_CHARS:
+        log.warning("refined tweet is %d chars (> %d)", len(text), TWEET_MAX_CHARS)
+    return text
+
+
 def revise(content: str, instructions: str, *, platform: str, model_id: str | None = None) -> str:
     """Rewrite one approved draft per Lorenzo's instructions. Returns the plain
     final text, ready to paste — no JSON, no wrapper."""
     from strands import Agent
     from strands.models import BedrockModel
 
-    model = BedrockModel(model_id=model_id or config.BEDROCK_MODEL_ID, temperature=0.4)
+    chosen_model = model_id or config.BEDROCK_PRO_MODEL_ID
+    model = BedrockModel(model_id=chosen_model, temperature=0.4)
     agent = Agent(model=model, system_prompt=REVISE_SYSTEM_PROMPT)
     message = build_revise_message(content=content, instructions=instructions, platform=platform)
     text = str(agent(message)).strip().strip('"').strip()

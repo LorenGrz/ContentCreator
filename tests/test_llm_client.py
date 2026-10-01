@@ -159,3 +159,32 @@ def test_generate_drafts_wires_prompt_to_model(monkeypatch):
     assert len(drafts) == 1
     assert drafts[0].content == "generated"
     assert drafts[0].source_signal_keys == ["SIGNAL#github#c1"]
+
+
+def test_refine_invokes_agent_with_pro_model(monkeypatch):
+    from generation.llm_client import refine
+
+    captured = {}
+
+    class FakeModel:
+        def __init__(self, model_id, temperature):
+            captured["model_id"] = model_id
+            captured["temperature"] = temperature
+
+    class FakeAgent:
+        def __init__(self, model, system_prompt):
+            captured["system_prompt"] = system_prompt
+
+        def __call__(self, prompt):
+            captured["prompt"] = prompt
+            return "Tweet pulido y contundente sobre NestJS"
+
+    monkeypatch.setattr("strands.models.BedrockModel", FakeModel)
+    monkeypatch.setattr("strands.Agent", FakeAgent)
+
+    res = refine("Borrador inicial", platform="twitter", topic_tags=["nestjs"])
+    assert res == "Tweet pulido y contundente sobre NestJS"
+    assert captured["model_id"] == "us.anthropic.claude-sonnet-4-6"
+    assert "redactor senior de contenido técnico" in captured["system_prompt"]
+    assert "Borrador inicial" in captured["prompt"]
+

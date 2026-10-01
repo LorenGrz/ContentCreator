@@ -19,6 +19,7 @@ Globals:
       Variables:
         TABLE_NAME: !Ref ContentTable
         BEDROCK_MODEL_ID: !Ref BedrockModelId
+        BEDROCK_PRO_MODEL_ID: !Ref BedrockProModelId
         SSM_PREFIX: /content-creator
         LOCAL_TZ: America/Argentina/Buenos_Aires
         GITHUB_OWNER: !Ref GithubOwner
@@ -44,6 +45,10 @@ Parameters:
     Type: String
     Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
     Description: Bedrock model / inference profile used to draft posts.
+  BedrockProModelId:
+    Type: String
+    Default: us.anthropic.claude-sonnet-4-6
+    Description: High-tier Bedrock model used to refine approved drafts and handle edits.
   GithubOwner:
     Type: String
     Default: LorenGrz
@@ -198,6 +203,8 @@ Resources:
               Resource:
                 - !Sub arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-*
                 - !Sub arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/${BedrockModelId}
+                - !Sub arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-*
+                - !Sub arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/${BedrockProModelId}
       Events:
         Health:
           Type: HttpApi
