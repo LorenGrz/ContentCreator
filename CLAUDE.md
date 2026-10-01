@@ -25,10 +25,13 @@ aprobar/editar el borrador.
   **off por default** — las instancias de Nitter son inestables). Si un
   borrador se apoya en un tweet seguido, propone un quote tweet en vez de un
   post original.
-- Flujo de edición en Telegram: **Aprobar** → **Editar** con lenguaje natural
-  ("más corto", "sacá el emoji") → Bedrock reescribe → vuelve con los mismos
-  botones. **Copiar** usa el botón nativo de Telegram (tope 256 caracteres);
-  si el texto es más largo, solo queda "Abrir en X" + el texto seleccionable.
+- Flujo de edición y aprobación en Telegram: al presionar **Aprobar**, el
+  borrador pasa por un modelo superior (Tier 2: Claude Sonnet 4.6) que lo pule y
+  eleva su ritmo y gancho técnico manteniendo el contexto exacto antes de entregarlo.
+  Luego permite **Editar** con lenguaje natural ("más corto", "sacá el emoji")
+  reutilizando el modelo pro → vuelve con los mismos botones. **Copiar** usa el
+  botón nativo de Telegram (tope 256 caracteres); si el texto es más largo, solo
+  queda "Abrir en X" + el texto seleccionable.
 - Deduplicación y triggers en Telegram: los `update_id` entrantes se reclaman
   atómicamente en DynamoDB para evitar repeticiones por reintentos de Telegram.
   El botón de edición es idempotente (no reenvía el prompt si la sesión ya
@@ -42,8 +45,9 @@ aprobar/editar el borrador.
 - FastAPI + Mangum (`handler.py` rutea los eventos de EventBridge Scheduler
   directo al job diario; todo lo demás va a FastAPI).
 - DynamoDB: una tabla, `PAY_PER_REQUEST`, `pk`/`sk` genérico, sin GSI.
-- Amazon Bedrock (`strands-agents`) para generar los borradores — mismo
-  patrón que usa `prioria`.
+- Amazon Bedrock (`strands-agents`) con arquitectura de dos niveles:
+  - Tier 1: Claude Haiku 4.5 (`BEDROCK_MODEL_ID`) para generación diaria rápida y económica de candidatos.
+  - Tier 2: Claude Sonnet 4.6 (`BEDROCK_PRO_MODEL_ID`) para refinamiento al aprobar y ediciones interactivas.
 - SSM Parameter Store (SecureString) para secrets — **no** Secrets Manager
   (ahorra ~$0.40/secret/mes).
 - SAM para packaging/deploy. Sin Docker para desarrollo local (`moto` para
@@ -51,4 +55,4 @@ aprobar/editar el borrador.
 
 ## Última revisión
 
-2026-09-29 — corrección de ingesta de commits reales de GitHub, límite de proveedor en digest y mix diario de prompts.
+2026-10-01 — refinamiento de borradores aprobados y ediciones con Claude Sonnet 4.6 en Bedrock.
