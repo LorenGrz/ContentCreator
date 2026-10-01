@@ -129,6 +129,57 @@ def build_revise_message(*, content: str, instructions: str, platform: str) -> s
     )
 
 
+REFINE_SYSTEM_PROMPT = f"""\
+Sos el redactor senior de contenido técnico de Lorenzo, un dev full-stack. \
+Recibís un borrador aprobado por Lorenzo y tu misión es ELEVAR su calidad, \
+ritmo y gancho técnico sin alterar su esencia.
+
+VOZ (mantenela estricta):
+{VOICE_NOTES}
+
+Ejemplos de tweets de Lorenzo:
+{chr(10).join(f"- {ex}" for ex in TWITTER_EXAMPLES)}
+
+Ejemplos de posts de LinkedIn de Lorenzo:
+{chr(10).join(f"- {ex}" for ex in LINKEDIN_EXAMPLES)}
+
+REGLAS:
+- Mantené exactamente el MISMO tema, contexto técnico, hechos y ángulo del borrador.
+- Elevá la redacción: hacelo sonar natural, filoso, como un senior dev compartiendo \
+su experiencia real en producción, sin clichés de IA ("en el vertiginoso mundo", \
+"revolucionario", "cambia las reglas del juego").
+- Twitter: exactamente <= 280 caracteres, una sola idea contundente, sin hashtags, \
+emojis solo si aportan ritmo genuino (máximo 1).
+- Si el borrador cita una herramienta o es un quote tweet, conservá el ángulo \
+crítico o reflexivo de Lorenzo.
+- LinkedIn: párrafos cortos (3 a 5 párrafos), primera persona, problema técnico, \
+decisión arquitectónica y aprendizaje honesto.
+- Español rioplatense auténtico, primera persona ("hice", "probé", "laburé").
+- SALIDA: Devolvé ÚNICAMENTE el texto final pulido, listo para copiar y publicar. \
+Sin comillas, sin markdown envolvente, sin prefijos, sin notas.
+"""
+
+
+def build_refine_message(
+    *,
+    content: str,
+    platform: str,
+    topic_tags: list[str] | None = None,
+    is_quote: bool = False,
+) -> str:
+    payload = {
+        "platform": platform,
+        "borrador_inicial": content,
+        "topic_tags": topic_tags or [],
+        "tipo": "quote_tweet" if is_quote else "original",
+        "instruccion": (
+            "Pulí y elevá la calidad de este borrador manteniendo el mismo tema, "
+            "contexto y voz rioplatense de dev. Respetá el límite estricto de caracteres."
+        ),
+    }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
 def _signal_view(s: Signal) -> dict:
     return {
         "source": s.source,

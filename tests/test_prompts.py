@@ -1,6 +1,11 @@
 import json
 
-from generation.prompts import SYSTEM_PROMPT, build_user_message
+from generation.prompts import (
+    REFINE_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    build_refine_message,
+    build_user_message,
+)
 from storage.models import Signal
 
 
@@ -227,3 +232,22 @@ def test_personal_activity_mandates_activity_anchor_in_instructions():
 def test_system_prompt_enforces_anti_monopoly_and_balance():
     assert "VARIEDAD ESTRICTA Y ANTI-MONOPOLIO" in SYSTEM_PROMPT
     assert "BALANCE Y PRIORIDAD DE ACTIVIDAD PROPIA" in SYSTEM_PROMPT
+
+
+def test_refine_system_prompt_and_message_structure():
+    assert "redactor senior de contenido técnico" in REFINE_SYSTEM_PROMPT
+    assert "<= 280 caracteres" in REFINE_SYSTEM_PROMPT
+    assert "sin hashtags" in REFINE_SYSTEM_PROMPT
+
+    msg = build_refine_message(
+        content="Borrador simple sobre NestJS",
+        platform="twitter",
+        topic_tags=["nestjs", "mercadopago"],
+        is_quote=False,
+    )
+    data = json.loads(msg)
+    assert data["platform"] == "twitter"
+    assert data["borrador_inicial"] == "Borrador simple sobre NestJS"
+    assert data["topic_tags"] == ["nestjs", "mercadopago"]
+    assert data["tipo"] == "original"
+

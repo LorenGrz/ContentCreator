@@ -17,8 +17,11 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 # Single DynamoDB table (generic pk/sk). Defaults match the SAM stack.
 TABLE_NAME = os.environ.get("TABLE_NAME", "content-creator")
 
-# Bedrock model for draft generation — same family as `prioria`.
+# Bedrock model for draft generation (Tier 1 fast / cheap candidates).
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
+
+# High-tier Bedrock model for refinement upon approval and edits (Tier 2 pro quality).
+BEDROCK_PRO_MODEL_ID = os.environ.get("BEDROCK_PRO_MODEL_ID", "us.anthropic.claude-sonnet-4-6")
 
 # --- SSM Parameter Store -------------------------------------------------
 
